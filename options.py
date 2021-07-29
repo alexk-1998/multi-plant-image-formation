@@ -1,5 +1,7 @@
 import torch
+
 from argparse import ArgumentParser
+from time import time
 
 class Options(ArgumentParser):
     """
@@ -8,8 +10,8 @@ class Options(ArgumentParser):
     def __init__(self):
         super().__init__()
         # basic parameters
-        self.add_argument('--root', type=str, required=True, help='Directory of images')
-        self.add_argument('--border_pad', type=int, default=0, help='Padding between plant and border in multi-plant image')
+        self.add_argument('--root', type=str, default=f'dataset_{round(time())}', help='Directory of images')
+        self.add_argument('--border_pad', type=int, default=0, help='Padding between plant and border in multi-plant image in pixels')
         self.add_argument('--l_avg', type=float, default=170.0, help='Value to set l-channel average equal to, larger values are lighter')
         self.add_argument('--a_avg', type=float, default=100.0, help='Value to set a-channel average equal to, smaller values are more green')
         self.add_argument('--b_avg', type=float, default=160.0, help='Value to set b-channel average equal to, larger values are more yellow')
@@ -20,7 +22,7 @@ class Options(ArgumentParser):
         self.add_argument('--model_type', type=str, default='unpaired', choices=['paired', 'unpaired'], help='Model to use for image translation')
         self.add_argument('--no_save_all', action='store_true', help='Do not save all intermediate files')
         self.add_argument('--num_images', type=int, default=1, help='Total number of created images')
-        self.add_argument('--plant_pad', type=int, default=0, help='Padding between plants in image')
+        self.add_argument('--plant_pad', type=int, default=100, help='Padding between plants in image in pixels')
         self.add_argument('--replace_all', action='store_true', help='Use the entire translated image and not just the bounding box contents')
         # model parameters
         self.add_argument('--gpu_ids', type=str, default='0', help='gpu ids eg 0 0,1 0,1,2, use -1 for CPU')

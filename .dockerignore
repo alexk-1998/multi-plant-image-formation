@@ -1,10 +1,4 @@
-# Ignore all datasets except a few
-datasets/*
-!/datasets/backgrounds
-!/datasets/singles_lab
-!/datasets/singles_lab_masked
-
-# Ignore unnecessary files
+dataset_*
 .dockerignore
 .DS_Store
 .gitignore
@@ -16,4 +10,3 @@ README.md
 stuff
 examples
 image_generation_multi_plant.code-workspace
-test

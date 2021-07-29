@@ -165,6 +165,14 @@ def main():
             bbox['x_max2'] = bbox['x_max'] + args.plant_pad // 2
             bbox['y_min2'] = bbox['y_min'] - args.plant_pad // 2
             bbox['y_max2'] = bbox['y_max'] + args.plant_pad // 2
+            if bbox['x_min2'] < 0:
+                bbox['x_min2'] = 0
+            if bbox['x_max2'] > composite.shape[1]:
+                bbox['x_max2'] = composite.shape[1]
+            if bbox['y_min2'] < 0:
+                bbox['y_min2'] = 0
+            if bbox['y_max2'] > composite.shape[0]:
+                bbox['y_max2'] = composite.shape[0]
             single = composite[bbox['y_min2']:bbox['y_max2'], bbox['x_min2']:bbox['x_max2']]
             if not args.no_save_all:
                 cv2.imwrite((folders['singles_comp']/bbox['filename']).as_posix(), single)
