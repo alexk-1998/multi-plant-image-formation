@@ -13,6 +13,8 @@ generated with corresponding json files that contain bounding box data for all p
   <img src="https://github.com/alexk-1998/multi-plant-image-formation/blob/master/examples/trans_bbox.png" title="Fake multi-plant bounding box image after GAN translation" width="49%"/>
 </p>
 
+The GAN was trained using the "Contrastive Unpaired Translation" project located at https://github.com/taesungp/contrastive-unpaired-translation.
+
 # Usage
 
 Clone the repository and run
