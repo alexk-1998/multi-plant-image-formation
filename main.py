@@ -114,6 +114,8 @@ def main():
             single = cv2.imread(single_path.as_posix())
             mask_path = single_path.as_posix().replace('_lab', '_lab_masked')
             single_masked = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+            if single_masked is None:
+                continue
             _, thresh = cv2.threshold(single_masked, 127, 255, cv2.THRESH_BINARY)
             
             # copy single and masked single to new folder
