@@ -52,6 +52,21 @@ class Options(ArgumentParser):
         Parse the command-line arguments
         """
         args = self.parse_args()
+        # check for valid arguments
+        if args.border_pad < 0:
+            raise ValueError('Border padding cannot be negative')
+        if args.min_scale < 0.0:
+            raise ValueError('The minimum scale of a single-plant image cannot be negative')
+        if args.max_scale > 1.0:
+            raise ValueError('The maximum scale of a single-plant image cannot be greater than 1')
+        if args.min_scale >= args.max_scale:
+            raise ValueError('The minimum scale of a single-plant image cannot be larger than the maximum scale')
+        if args.min_plants < 0:
+            raise ValueError('The minimum number of plants in an image cannot be negative')
+        if args.min_plants > args.max_plants:
+            raise ValueError('The minimum number of plants in an image cannot be greater than the maximum')
+        if args.plant_pad < 10:
+            raise ValueError('Plant padding must be at least 10 pixels, this is needed for lightness matching of the translated image')
         # set gpu ids
         str_ids = args.gpu_ids.split(',')
         args.gpu_ids = []
