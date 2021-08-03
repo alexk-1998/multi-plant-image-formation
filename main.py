@@ -128,7 +128,7 @@ def main():
                          (folders['singles_masked']/single_path.name).as_posix())
 
             # colour correct image
-            single = colour_correct(single, single_masked, args)
+            single = colour_correct(single, thresh, args)
 
             # remove background from single image
             single[thresh == 0] = 0
