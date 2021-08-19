@@ -19,7 +19,7 @@ class Options(ArgumentParser):
         self.add_argument('--max_scale', type=float, default=0.2, help='Maximum scale of plant relative to background')
         self.add_argument('--min_plants', type=int, default=0, help='Minimum number of plants on background')
         self.add_argument('--max_plants', type=int, default=10, help='Maximum number of plants on background')
-        self.add_argument('--model_type', type=str, default='unpaired', choices=['paired', 'unpaired'], help='Model to use for image translation')
+        self.add_argument('--model_type', type=str, default='comp2field', choices=['comp2field'], help='Model to use for image translation')
         self.add_argument('--no_save_all', action='store_true', help='Do not save all intermediate files')
         self.add_argument('--num_images', type=int, default=1, help='Total number of created images')
         self.add_argument('--plant_pad', type=int, default=100, help='Padding between plants in image in pixels')
