@@ -23,7 +23,7 @@ Clone the repository and run
 
 Typical usage, including additional option flags, is
 
-```python3 main.py --root /directory/for/saving --min_scale 0.1 --max_scale 0.25 --min_plants 3 --max_plants 6 --plant_pad 100 --gpu_ids -1 --num_images 100 --model_type unpaired```
+```python3 main.py --root /directory/for/saving --min_scale 0.1 --max_scale 0.25 --min_plants 3 --max_plants 6 --plant_pad 100 --gpu_ids -1 --num_images 100```
 
 # Requirements
 
