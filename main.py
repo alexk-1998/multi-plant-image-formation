@@ -29,14 +29,15 @@ def main():
     folders = {
         'backgrounds': Path(args.root, 'backgrounds'),
         'json_files': Path(args.root, 'json_files'),
-        'multi': Path(args.root, 'multi_plants_comp'),
-        'multi_bbox': Path(args.root, 'multi_plants_comp_bbox'),
+        'multi_comp': Path(args.root, 'multi_plants_comp'),
+        'multi_comp_bbox': Path(args.root, 'multi_plants_comp_bbox'),
         'multi_trans': Path(args.root, 'multi_plants_trans'),
         'multi_trans_bbox': Path(args.root, 'multi_plants_trans_bbox'),
         'singles': Path(args.root, 'singles_lab'),
         'singles_masked': Path(args.root, 'singles_lab_masked'),
         'singles_comp': Path(args.root, 'singles_comp'),
         'singles_trans': Path(args.root, 'singles_trans'),
+        'singles_final': Path(args.root, 'singles_final')
     }
     for key, folder in folders.items():
         if not args.no_save_all or key == 'multi_trans' or key == 'json_files':
@@ -45,7 +46,10 @@ def main():
     # get list of all available backgrounds and single images
     print('Getting single and masked single datasets...')
     backgrounds = list(Path('datasets', 'backgrounds').glob('**/background*'))
-    singles = sorted(list(Path('datasets', 'singles_lab').glob('**/*.jpg')))
+    if args.plant_type == 'All':
+        singles = sorted(list(Path('datasets', 'singles_lab').glob('**/*.jpg')))
+    else:
+        singles = sorted(list(Path('datasets', 'singles_lab').glob(f'**/{args.plant_type}*')))
 
     # get all plant types and position in sorted list
     valid_plants = {}
@@ -59,10 +63,10 @@ def main():
         else:
             valid_plants[plant][1] = i
     plants = tuple(valid_plants.keys())
-    
+
     print('Creating multi-plant images...')
 
-    for i in range(1, args.num_images+1):
+    for i in range(args.num_images):
 
         lap_start = time()
 
@@ -72,6 +76,7 @@ def main():
         composite = cv2.imread(composite_path.as_posix())
         translated = composite.copy()
         
+
         # copy blank background to folder
         if not args.no_save_all and not (folders['backgrounds']/composite_path.name).exists():
             copy(composite_path.as_posix(),
@@ -82,11 +87,15 @@ def main():
         if not args.no_save_all:
             data['background'] = composite_path.name
 
-        # randomly choose number of plants in image
-        num_plants = np.random.randint(args.min_plants, args.max_plants+1)
+        # choose number of plants or rows in image
+        if not args.make_rows:
+            num_plants = np.random.randint(args.min_plants, args.max_plants+1)
+        else:
+            num_rows = np.random.randint(args.min_rows, args.max_rows + 1)
+            num_plants = num_rows * args.n_per_row
 
-        for _ in range(num_plants):
-        
+        for k in range(num_plants):
+
             # create dict for storing bounding box data
             bbox = {}
 
@@ -117,15 +126,21 @@ def main():
             if single_masked is None:
                 continue
             _, thresh = cv2.threshold(single_masked, 127, 255, cv2.THRESH_BINARY)
-            
+
             # copy single and masked single to new folder
             if not args.no_save_all:
                 if not Path(folders['singles'], single_path.name).exists():
-                    copy(single_path.as_posix(),
-                         (folders['singles']/single_path.name).as_posix())
+                    try:
+                        copy(single_path.as_posix(),
+                             (folders['singles']/single_path.name).as_posix())
+                    except FileNotFoundError:
+                        pass
                 if not Path(folders['singles_masked'], single_path.name).exists():
-                    copy(mask_path,
-                         (folders['singles_masked']/single_path.name).as_posix())
+                    try:
+                        copy(mask_path,
+                             (folders['singles_masked']/single_path.name).as_posix())
+                    except FileNotFoundError:
+                        pass
 
             # colour correct image
             single = colour_correct(single, thresh, args)
@@ -139,23 +154,27 @@ def main():
             single = cv2.resize(single, None, fx=scale, fy=scale,
                                 interpolation=cv2.INTER_AREA)
 
-            # random pad image with black so it has size equal to full background
-            # make 10 attempts to find non-overlapping single image positions
-            orig = single.copy()
-            attempts = 0
-            while True:
-                overlapping = False
-                single = random_pad(single, composite.shape, bbox, args)
-                for bbox2 in data['bounding_boxes']:
-                    if bbox_overlapping(bbox, bbox2, args):
-                        overlapping = True
-                        attempts += 1
-                if not overlapping or attempts >= 10:
-                    break
-                else:
-                    single = orig.copy()
-            if attempts >= 10:
-                continue
+            if not args.make_rows:
+                # random pad image with black so it has size equal to full background
+                # make 10 attempts to find non-overlapping single image positions
+                orig = single.copy()
+                attempts = 0
+                while True:
+                    overlapping = False
+                    single = random_pad(single, composite.shape, bbox, args)
+                    for bbox2 in data['bounding_boxes']:
+                        if bbox_overlapping(bbox, bbox2, args):
+                            overlapping = True
+                            attempts += 1
+                    if not overlapping or attempts >= 10:
+                        break
+                    else:
+                        single = orig.copy()
+                if attempts >= 10:
+                    continue
+            else:
+                set_plant_location(single.shape, composite.shape, k, num_rows, bbox, args)
+                single = pad_single(single, composite.shape, bbox)
 
             # join single and background with new mask
             grey = cv2.cvtColor(single, cv2.COLOR_BGR2GRAY)
@@ -215,6 +234,9 @@ def main():
             result = result + comp_mean - res_mean
             result = np.clip(result, 0.0, 255.0)
             result = result.astype(np.uint8)
+            if not args.no_save_all:
+                cv2.imwrite((folders['singles_final']/bbox['filename']).as_posix(),
+                            result)
 
             # add transformed image to background copy
             if args.replace_all:
@@ -235,14 +257,14 @@ def main():
 
         # write original image and bounding box images to disc
         if not args.no_save_all:
-            cv2.imwrite((folders['multi']/filename).as_posix(), composite)
+            cv2.imwrite((folders['multi_comp']/filename).as_posix(), composite)
             # write bounding box images to disc
             for bbox in data['bounding_boxes']:
                 cv2.rectangle(composite, (bbox['x_min'], bbox['y_min']),
-                              (bbox['x_max'], bbox['y_max']), (0, 0, 255), 3)
+                              (bbox['x_max'], bbox['y_max']), (0, 255, 0), 2)
                 cv2.rectangle(translated, (bbox['x_min'], bbox['y_min']),
-                              (bbox['x_max'], bbox['y_max']), (0, 0, 255), 3)
-            cv2.imwrite((folders['multi_bbox']/filename).as_posix(), composite)
+                              (bbox['x_max'], bbox['y_max']), (0, 255, 0), 2)
+            cv2.imwrite((folders['multi_comp_bbox']/filename).as_posix(), composite)
             cv2.imwrite((folders['multi_trans_bbox']/filename).as_posix(),
                         translated)
 
@@ -258,13 +280,57 @@ def main():
     average = round(elapsed / args.num_images, 2)
     print('Image creation complete')
     print(f'Total time elapsed: {elapsed} s, {average} s/image')
+    
+    
+def set_plant_location(image_size, final_size, i, n_rows, bbox, args):
+    """
+    Get location of plant when aligning into rows
+
+    Parameters:
+        image_size (tuple): size of plant image being placed
+        final_size (tuple): size multi-plant image being constructed
+        i (int): index of plant in image
+        n_rows (int): number of rows in multi-plant image
+        bbox (dict): for setting the plant location
+        args (argparse.Namespace): for additional parameters
+    """
+    n_row = i // args.n_per_row
+    n_col = i % args.n_per_row
+    x_c = int(final_size[1] * (n_row + 1) / (n_rows + 1))
+    x_shift_max = int(0.1 * image_size[1])
+    x_c += np.random.randint(-x_shift_max, x_shift_max + 1)
+    bbox['x_min'] = x_c - image_size[1]//2
+    bbox['x_max'] = bbox['x_min'] + image_size[1]
+    y_c = int(final_size[0] * (n_col + 1) / (args.n_per_row + 1))
+    y_shift_max = int(0.1 * image_size[0])
+    y_c += np.random.randint(-y_shift_max, y_shift_max + 1)
+    bbox['y_min'] = y_c - image_size[0]//2
+    bbox['y_max'] = bbox['y_min'] + image_size[0]
+
+
+def pad_single(image, size, bbox):
+    """
+    Pad image so it has the correct final size
+
+    Parameters:
+        image (np.ndarray): image to be padded
+        size (tuple): size that image is padded to
+        bbox (dict): for passing location of the plant in the padded image
+    """
+    pad_top = bbox['y_min']
+    pad_bottom = size[0] - image.shape[0] - pad_top
+    pad_left = bbox['x_min']
+    pad_right = size[1] - image.shape[1] - pad_left
+    pad = (pad_top, pad_bottom, pad_left, pad_right)
+    #print(bbox, size, image.shape)
+    return cv2.copyMakeBorder(image, *pad, cv2.BORDER_CONSTANT)
 
 
 def random_pad(image, size, bbox, args):
     """
     Pad image so it has the correct final size
     Padding is random to 'shift' the image on the background
-    
+
     Parameters:
         image (np.ndarray): image to be padded
         size (tuple): size that image is padded to
@@ -286,7 +352,7 @@ def random_pad(image, size, bbox, args):
 def bbox_overlapping(bbox1, bbox2, args):
     """
     Return a boolean indicating whether two bounding boxes are overlapping
-    
+
     Parameters:
         bbox1 (dict): first bounding box
         bbox2 (dict): second bounding box
@@ -303,7 +369,7 @@ def bbox_overlapping(bbox1, bbox2, args):
 def get_filename(stem, i, j, suffix):
     """
     For formatting single filenames in the format "Soybean202007021339353_00i_j.jpg"
-    
+
     Parameters:
         stem (str): filename, not including extension, eg. Soybean202007021339353
         i (int): counter indicating which multi-plant image the single belongs to
@@ -318,7 +384,7 @@ def colour_correct(image, mask, args):
     Correct the colour of a single plant image to match the field data
     Colour correction only occurs where the mask is true
     Colour correction is done by shifting the mean values of a CIELAB image to desired values
-    
+
     Parameters:
         image (np.ndarray): image to be colour corrected
         mask (np.ndarray): mask that indicates which pixels belong to the plant
